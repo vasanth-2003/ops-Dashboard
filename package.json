@@ -10,6 +10,7 @@
     "server": "node --env-file=.env server/index.js"
   },
   "dependencies": {
+    "@tanstack/react-query": "^5.104.0",
     "express": "^5.2.1",
     "mongoose": "^9.10.2",
     "react": "^18.3.1",

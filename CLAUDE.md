@@ -18,11 +18,26 @@ Confirmed (nothing else should be assumed or substituted without asking):
 - Database: MongoDB
 - Version control: Git
 
-Status: the repository has no code yet — no `package.json`, no source files, no commits. Build/lint/test/dev commands do not exist yet and must not be invented. The first time real scaffolding is added, this file must be updated with the actual commands (install, dev server, build, lint, test — including how to run a single test).
+Status: scaffolding exists. Frontend (React + Vite + Tailwind) and backend (Express + Mongoose) are both present, along with the first vertical slice, Link Tracking (see below). No test framework is chosen yet (see Testing expectations) — do not invent test/lint commands until one is.
+
+### Development commands
+
+- `npm run dev` — starts the Vite frontend dev server.
+- `npm run server` — starts the Express backend (`node --env-file=.env server/index.js`).
+- `npm run build` — produces the production frontend build via Vite.
+
+The frontend and backend are run as two separate processes during development (two terminals: `npm run dev` and `npm run server`). There is no combined "run everything" script yet — don't invent one without asking.
 
 ## Planned modules
 
 1. **Link tracking & analytics** — create/manage affiliate links, capture clicks/conversions, report performance (clicks, conversions, EPC, revenue) per link, product, and niche.
+
+   **Currently implemented** (backend + minimal frontend):
+   - `POST /api/links` — create a link (validated `shortCode`, `destinationUrl`, optional `product`).
+   - `GET /api/links` — list all links, newest first.
+   - `GET /r/:shortCode` — public redirect endpoint; atomically increments `clickCount` via `$inc`, then 302-redirects to `destinationUrl`.
+   - Short codes are user-supplied (not auto-generated) and normalized to lowercase before validation, storage, and lookup, so `Deal-1` and `deal-1` resolve to the same link.
+   - Not yet implemented: conversions, EPC, revenue reporting, edit/delete links, analytics aggregation, authentication, pagination.
 2. **Niche/product research board** — evaluate potential niches/products before committing (e.g. researching → testing → active → dropped), tracking commission rates, competition, demand signals.
 3. **Content calendar** — schedule content tied to specific products/links/campaigns, with publish status and dates.
 4. **Payout tracker** — record affiliate network payouts (expected vs. received, dates, network, method), reconciled against revenue from link analytics.
@@ -30,10 +45,38 @@ Status: the repository has no code yet — no `package.json`, no source files, n
 ## Planned architecture
 
 - React (Tailwind for styling) talks to an Express API over HTTP; TanStack Query owns server-state caching/refetching on the frontend — avoid duplicating that state in component state or a separate global store.
-- Express talks to MongoDB directly (driver or ODM choice — e.g. Mongoose — is not yet decided; ask before introducing one).
-- Data model anchor: a **product/niche** document is the central entity. Links belong to a product, content pieces target a product, and payouts are attributed to a network/product rather than an individual link (a network payout is many-to-one against links/products, not one-to-one — don't model it as one-to-one).
+- Express talks to MongoDB through Mongoose (see Database section below).
+- Data model anchor: a **product/niche** document is the central entity. Links belong to a product, content pieces target a product, and payouts are attributed to a network/product rather than an individual link (a network payout is many-to-one against links/products, not one-to-one — don't model it as one-to-one). Note: the Link model currently stores `product` as a plain String, not a reference, since the product/niche model doesn't exist yet — see Link Tracking scope below.
 - Changes to the product/niche schema likely ripple into links, content, and payouts — check all three before altering it.
-- Click tracking implies a public-facing redirect endpoint (e.g. `/r/:linkId`) that logs an event and then redirects. This is unbuilt; when it's designed, document the chosen approach here.
+- Click tracking uses a public-facing redirect endpoint, `GET /r/:shortCode`, that atomically increments a click counter and then redirects (302) to the link's destination URL. Implemented — see Link Tracking scope below.
+
+### Backend architecture
+
+- The Express app lives under `server/`.
+- `server/index.js` — entry point; connects to MongoDB then starts the HTTP server.
+- `server/app.js` — creates and configures the Express app (middleware, route mounting, centralized error handler). Import this in tests/tooling instead of duplicating app setup.
+- `server/config/` — environment (`env.js`) and database connection (`db.js`).
+- `server/features/<name>/` — each module gets its own folder (e.g. `server/features/links/`) with its model, validation, controller, and routes files. Follow this layout for new modules (research board, content calendar, payout tracker) rather than a flat `models/`/`routes/` split.
+
+### Database
+
+Mongoose is the chosen MongoDB access layer for this project (decided during Link Tracking implementation). It provides:
+- Schema validation (required fields, custom validators) enforced before a write reaches MongoDB.
+- Index declarations (e.g. unique indexes) as part of the schema.
+- Automatic `createdAt`/`updatedAt` timestamps via `{ timestamps: true }`.
+- Convenient atomic operations, e.g. `findOneAndUpdate` with `$inc`, used for click counting so concurrent requests can't lose increments to a read-then-write race.
+
+### Environment configuration
+
+- `.env` is local-only and gitignored — never commit it.
+- `.env.example` documents the required environment variables (currently `MONGODB_URI`, `PORT`) without real values.
+- The `npm run server` script currently uses Node's built-in `--env-file=.env` flag to load environment variables — no `dotenv` package dependency.
+
+### Frontend/backend development connection
+
+- The Vite dev server proxies `/api` and `/r` to `http://localhost:5000` (configured in `vite.config.js`).
+- Because of this, frontend code calls relative paths like `/api/links` (see `src/lib/api.js`) rather than a hardcoded host/port.
+- Do not add `cors` to the backend unless the architecture changes (e.g. frontend and backend served from different origins in production without a proxy) — ask before introducing it.
 
 ## Coding conventions
 
