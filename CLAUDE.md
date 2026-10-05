@@ -34,10 +34,13 @@ The frontend and backend are run as two separate processes during development (t
 
    **Currently implemented** (backend + minimal frontend):
    - `POST /api/links` — create a link (validated `shortCode`, `destinationUrl`, optional `product`).
-   - `GET /api/links` — list all links, newest first.
+   - `GET /api/links` — list links, newest first, paginated via `page`/`limit` query params (`page` default 1, `limit` default 10, max 100; both must be positive integers or the request is rejected with 400). Response shape is `{ links, pagination: { page, limit, total, totalPages } }`, not a bare array. A `page` beyond `totalPages` returns an empty `links` array rather than an error.
+   - `DELETE /api/links/:id` — delete one link by Mongo `_id` (hard delete, no soft-delete flag). 400 if `id` isn't a valid ObjectId shape, 404 if no link matches, 204 with no body on success.
    - `GET /r/:shortCode` — public redirect endpoint; atomically increments `clickCount` via `$inc`, then 302-redirects to `destinationUrl`.
    - Short codes are user-supplied (not auto-generated) and normalized to lowercase before validation, storage, and lookup, so `Deal-1` and `deal-1` resolve to the same link.
-   - Not yet implemented: conversions, EPC, revenue reporting, edit/delete links, analytics aggregation, authentication, pagination.
+   - Frontend `LinksList` shows Previous/Next pagination controls and a per-row Delete button (confirms via `window.confirm` before calling the API).
+   - Not yet implemented: conversions, EPC, revenue reporting, edit links, analytics aggregation, authentication.
+   - Known limitation: deleting the last link on a page beyond page 1 doesn't auto-step the frontend back a page, so it can momentarily show "No links yet." even though earlier pages still have data. Not fixed yet — flagged as a follow-up.
 2. **Niche/product research board** — evaluate potential niches/products before committing (e.g. researching → testing → active → dropped), tracking commission rates, competition, demand signals.
 3. **Content calendar** — schedule content tied to specific products/links/campaigns, with publish status and dates.
 4. **Payout tracker** — record affiliate network payouts (expected vs. received, dates, network, method), reconciled against revenue from link analytics.
