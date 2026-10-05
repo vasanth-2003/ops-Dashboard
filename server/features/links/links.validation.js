@@ -1,8 +1,15 @@
+import mongoose from 'mongoose'
+
 export const SHORT_CODE_PATTERN = /^[a-z0-9-]+$/
 export const SHORT_CODE_MIN = 3
 export const SHORT_CODE_MAX = 40
 export const URL_MAX = 2048
 export const PRODUCT_MAX = 100
+export const PAGE_DEFAULT = 1
+export const LIMIT_DEFAULT = 10
+export const LIMIT_MAX = 100
+
+const POSITIVE_INTEGER_PATTERN = /^\d+$/
 
 const ALLOWED_FIELDS = ['shortCode', 'destinationUrl', 'product']
 
@@ -83,4 +90,37 @@ export function validateCreateLink(payload) {
     value.product = product.trim()
   }
   return { value }
+}
+
+// Returns { value } on success or { errors } on failure. Never throws on bad input.
+export function parsePagination(query) {
+  const { page: rawPage, limit: rawLimit } = query ?? {}
+  const errors = {}
+
+  let page = PAGE_DEFAULT
+  if (rawPage !== undefined) {
+    if (typeof rawPage !== 'string' || !POSITIVE_INTEGER_PATTERN.test(rawPage) || Number(rawPage) === 0) {
+      errors.page = 'page must be a positive integer'
+    } else {
+      page = Number(rawPage)
+    }
+  }
+
+  let limit = LIMIT_DEFAULT
+  if (rawLimit !== undefined) {
+    if (typeof rawLimit !== 'string' || !POSITIVE_INTEGER_PATTERN.test(rawLimit) || Number(rawLimit) === 0) {
+      errors.limit = 'limit must be a positive integer'
+    } else {
+      // A limit above the max is capped rather than rejected, since "give me more" is a reasonable ask.
+      limit = Math.min(Number(rawLimit), LIMIT_MAX)
+    }
+  }
+
+  if (Object.keys(errors).length > 0) return { errors }
+
+  return { value: { page, limit } }
+}
+
+export function isValidObjectId(id) {
+  return typeof id === 'string' && mongoose.Types.ObjectId.isValid(id)
 }

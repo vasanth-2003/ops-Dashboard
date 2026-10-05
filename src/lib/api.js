@@ -10,11 +10,12 @@ async function request(path, options) {
     throw error
   }
 
+  if (res.status === 204) return null
   return res.json()
 }
 
-export function getLinks() {
-  return request('/api/links')
+export function getLinks({ page = 1, limit = 10 } = {}) {
+  return request(`/api/links?page=${page}&limit=${limit}`)
 }
 
 export function createLink(payload) {
@@ -23,4 +24,8 @@ export function createLink(payload) {
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(payload),
   })
+}
+
+export function deleteLink(id) {
+  return request(`/api/links/${id}`, { method: 'DELETE' })
 }

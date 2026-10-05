@@ -3,6 +3,8 @@ import {
   validateCreateLink,
   normalizeShortCode,
   isValidShortCode,
+  parsePagination,
+  isValidObjectId,
 } from './links.validation.js'
 
 export async function redirectLink(req, res) {
@@ -27,8 +29,43 @@ export async function redirectLink(req, res) {
 }
 
 export async function listLinks(req, res) {
-  const links = await Link.find().sort({ createdAt: -1 })
-  res.json(links)
+  const { value, errors } = parsePagination(req.query)
+  if (errors) {
+    return res.status(400).json({ error: 'Validation failed', details: errors })
+  }
+
+  const { page, limit } = value
+  const skip = (page - 1) * limit
+
+  const [links, total] = await Promise.all([
+    Link.find().sort({ createdAt: -1 }).skip(skip).limit(limit),
+    Link.countDocuments(),
+  ])
+
+  res.json({
+    links,
+    pagination: {
+      page,
+      limit,
+      total,
+      totalPages: Math.max(Math.ceil(total / limit), 1),
+    },
+  })
+}
+
+export async function deleteLink(req, res) {
+  const { id } = req.params
+
+  if (!isValidObjectId(id)) {
+    return res.status(400).json({ error: 'Invalid link id' })
+  }
+
+  const deleted = await Link.findByIdAndDelete(id)
+  if (!deleted) {
+    return res.status(404).json({ error: 'Link not found' })
+  }
+
+  res.status(204).send()
 }
 
 export async function createLink(req, res) {
