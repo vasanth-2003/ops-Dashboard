@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useQuery, useMutation, useQueryClient, keepPreviousData } from '@tanstack/react-query'
 import { getLinks, deleteLink } from '../../lib/api.js'
 
@@ -30,7 +30,15 @@ function LinksList() {
     },
   })
 
-  if (isLoading) {
+  // After deleting the last link on a later page, that page no longer exists; step back to the last valid one.
+  const pageIsPastEnd = Boolean(data) && page > 1 && data.links.length === 0
+  const lastPage = data ? Math.max(1, data.pagination.totalPages) : 1
+
+  useEffect(() => {
+    if (pageIsPastEnd) setPage(lastPage)
+  }, [pageIsPastEnd, lastPage])
+
+  if (isLoading || pageIsPastEnd) {
     return <p className="p-4 text-sm text-slate-600 sm:p-6">Loading links…</p>
   }
 

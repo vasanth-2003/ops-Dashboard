@@ -1,4 +1,4 @@
-import { defineConfig } from 'vite'
+import { defineConfig } from 'vitest/config'
 import react from '@vitejs/plugin-react'
 
 export default defineConfig({
@@ -6,7 +6,11 @@ export default defineConfig({
   server: {
     proxy: {
       '/api': 'http://localhost:5000',
-      '/r': 'http://localhost:5000',
+      // Trailing slash matters: a bare '/r' would also proxy client routes like /research.
+      '/r/': 'http://localhost:5000',
     },
+  },
+  test: {
+    environment: 'node',
   },
 })

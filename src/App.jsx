@@ -1,15 +1,20 @@
-import LinksList from './features/links/LinksList.jsx'
-import CreateLinkForm from './features/links/CreateLinkForm.jsx'
+import { Navigate, Route, Routes } from 'react-router-dom'
+import AppShell from './layout/AppShell.jsx'
+import ComingSoon from './pages/ComingSoon.jsx'
+import LinksPage from './features/links/LinksPage.jsx'
 
 function App() {
   return (
-    <div className="min-h-screen bg-slate-50 px-4 py-8 sm:px-6 lg:px-8">
-      <h1 className="text-2xl sm:text-3xl lg:text-4xl font-bold text-slate-800">
-        Link Tracking
-      </h1>
-      <CreateLinkForm />
-      <LinksList />
-    </div>
+    <Routes>
+      <Route element={<AppShell />}>
+        <Route index element={<ComingSoon title="Overview" />} />
+        <Route path="links" element={<LinksPage />} />
+        <Route path="research" element={<ComingSoon title="Research board" />} />
+        <Route path="content" element={<ComingSoon title="Content calendar" />} />
+        <Route path="payouts" element={<ComingSoon title="Payouts" />} />
+        <Route path="*" element={<Navigate to="/" replace />} />
+      </Route>
+    </Routes>
   )
 }
 
